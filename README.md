@@ -17,30 +17,12 @@ Sensor data is transmitted in real time to a **cross-platform mobile application
 
 ---
 
-## Monorepo Structure
-
-This repository contains all major components of the system:
-
-- **Embedded firmware**
-  - BLE device firmware (DFU logger from Holyiot)
-  - OTA / DFU update support
-- **Mobile application**
-  - Cross-platform app (Android / iOS)
-  - BLE communication and device management
-  - Game logic, UI/UX, and user feedback
-
----
-
 ## Technologies
 
-- **Hardware**: HolyIOT-21014 development board https://docs.zephyrproject.org/latest/boards/holyiot/holyiot_21014/doc/index.html
-- **Firmware**: DFU_21014_Logger_20240109 for nRF52810
 - **Sensor**: LIS2DH12 accelerometer (I2C)
+- **Hardware**: [HolyIOT-21014](https://docs.zephyrproject.org/latest/boards/holyiot/holyiot_21014/doc/index.html)
+- **Firmware**: [Hopla!Embededd](https://github.com/patentfm/Hopla-embedded)  for nRF52810
 - **Mobile**: Flutter with native BLE plugins (iOS CoreBluetooth, Android BLE API)
-
-
-
-
 
 ---
 
