@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:hopla/ble/hopla_adv_parser.dart';
+import 'package:hopla/ble/ble_device_screen.dart';
 
 class BleScannerScreen extends StatefulWidget {
   const BleScannerScreen({super.key});
@@ -296,15 +297,15 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               color: Colors.blue.shade50,
-              child: Row(
-                children: [
-                  const SizedBox(
+              child: const Row(
+                children: <Widget>[
+                  SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('Skanowanie w toku...'),
+                  SizedBox(width: 12),
+                  Text('Skanowanie w toku...'),
                 ],
               ),
             ),
@@ -373,7 +374,15 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
                             ],
                           ),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _showDeviceDetails(device),
+                          onTap: () {
+                            _stopScan();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BleDeviceScreen(device: device),
+                              ),
+                            );
+                          },
+                          onLongPress: () => _showDeviceDetails(device),
                         ),
                       );
                     },
