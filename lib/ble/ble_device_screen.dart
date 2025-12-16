@@ -275,6 +275,111 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
 
   _CharMeta? _meta(Uuid charId) => _charMeta[charId];
 
+  String _docForChar(Uuid charId) {
+    if (charId == HoplaGattUuids.sampleRate) {
+      return [
+        'Sample Rate (0x0002)',
+        '- Typ: uint16 LE (ms)',
+        '- Default: 200',
+        '- Zakres: 10..10000',
+        '',
+        'Przykład zapisu 1000 ms:',
+        '- wartość: 0x03E8',
+        '- bajty (LE): E8 03',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.logInterval) {
+      return [
+        'Log Interval (0x0003)',
+        '- Typ: uint16 LE (ms)',
+        '- Default: 200',
+        '- Zakres: 100..60000',
+        '',
+        'To steruje jak często aktualizuje się Manufacturer Data w reklamie. Czyli praktycznie czas odświeżania rozgłaszania Akkcelerometru',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.advInterval) {
+      return [
+        'Adv Interval (0x0004)',
+        '- Typ: uint16 LE (ms)',
+        '- Default: 100',
+        '- Zakres: 20..4000',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.txPower) {
+      return [
+        'TX Power (0x0005)',
+        '- Typ: int8 (dBm)',
+        '- Default: 0',
+        '- Zakres: -40..4',
+        '- Typowe wartości: -40,-20,-16,-12,-8,-4,0,3,4',
+        '',
+        'Wpisanie "4" oznacza +4 dBm (int8 -> 0x04).',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.deviceName) {
+      return [
+        'Device Name (0x0006)',
+        '- Typ: UTF-8 bytes (bez \\0)',
+        '- Rozmiar: 1..20 bajtów',
+        '- Default: Hopla!',
+        '',
+        'Zapis restartuje advertising z nową nazwą.',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.accelThresh) {
+      return [
+        'Accel Thresh (0x0007)',
+        '- Typ: uint16 LE (mg)',
+        '- Default: 500',
+        '- Zakres: 50..8000',
+        '',
+        'Używany też w trybie ARMED (czerwona dioda gdy max(|x|,|y|,|z|) >= threshold).',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.accelRange) {
+      return [
+        'Accel Range (0x0008)',
+        '- Typ: uint8 (±g)',
+        '- Default: 2',
+        '- Zakres: 2..16',
+        '',
+        'Firmware normalizuje do: 2 / 4 / 8 / 16.',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.accelCalib) {
+      return [
+        'Accel Calib (0x0009)',
+        '- Typ: 3×int16 LE (mg) => X,Y,Z',
+        '- Default: (0,0,0)',
+        '- Zakres: dowolne int16 (mg)',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.mode) {
+      return [
+        'Mode (0x000A)',
+        '- Typ: uint8',
+        '- Default: 0',
+        '- Wartości: 0=Normal, 1=Eco, 2=Armed',
+        '',
+        'Semantyka (wartości efektywne):',
+        '- Normal: bazowe',
+        '- Eco: sample/log/adv ×2 (z clampem), TX max -8 dBm',
+        '- Armed: sample/log ÷2 (clamp), adv ÷2 (jeśli > min)',
+      ].join('\n');
+    }
+    if (charId == HoplaGattUuids.logs) {
+      return [
+        'Logs (0x000B)',
+        '- Typ: ASCII bytes (linie zakończone \\n)',
+        '- Rozmiar: 0..1024 (ring buffer w RAM; nadpisuje najstarsze)',
+        '',
+        'Odczyt (w aplikacji): pobieramy jedną porcję i pokazujemy pierwszą linię.',
+      ].join('\n');
+    }
+    return 'Brak opisu dla tej charakterystyki.';
+  }
+
   Future<void> _showDescriptorDialog(Uuid charId, {required String title}) async {
     final meta = _meta(charId);
     if (!mounted) return;
@@ -285,6 +390,8 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
         content: SingleChildScrollView(
           child: Text(
             [
+              _docForChar(charId),
+              '',
               'Characteristic UUID:',
               '$charId',
               '',
@@ -296,9 +403,6 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
                 '- notify: ${meta.isNotifiable}',
                 '- indicate: ${meta.isIndicatable}',
               ],
-              '',
-              'Descriptor:',
-              'flutter_reactive_ble nie udostępnia API do listowania/odczytu wartości descriptorów (np. 0x2902).',
             ].join('\n'),
           ),
         ),
@@ -464,70 +568,15 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
     await _writeRaw(charId, bytes);
   }
 
-  Future<void> _logCtrlWrite(Uint8List cmd) async {
-    await _writeRaw(HoplaGattUuids.logCtrl, cmd);
-  }
-
-  Future<void> _readLogsBestEffort() async {
-    // flutter_reactive_ble does not expose "Read long / Read blob" offsets.
-    // We still read a single chunk (usually <= MTU-1) so user can see something.
+  Future<void> _readLogsFirstLine() async {
+    // Simplified: read a single chunk and show only the first line (up to '\n').
     final bytes = await _readRaw(HoplaGattUuids.logs);
-    _logsText = HoplaBleCodec.readUtf8(bytes);
+    final text = HoplaBleCodec.readUtf8(bytes);
+    final firstLine = text.split('\n').first;
     if (!mounted) return;
-    setState(() {});
-  }
-
-  Future<void> _showLogCtrlDialog() async {
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log Ctrl'),
-        content: const Text('Wyślij komendę do charakterystyki Log Ctrl (write).'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Zamknij'),
-          ),
-          TextButton(
-            onPressed: _busy || !_isConnected
-                ? null
-                : () async {
-                    await _writeField(() => _logCtrlWrite(Uint8List.fromList([0x01])));
-                    if (ctx.mounted) Navigator.of(ctx).pop();
-                  },
-            child: const Text('Clear (01)'),
-          ),
-          TextButton(
-            onPressed: _busy || !_isConnected
-                ? null
-                : () async {
-                    await _writeField(() => _logCtrlWrite(Uint8List.fromList([0x02, 0x01])));
-                    if (ctx.mounted) Navigator.of(ctx).pop();
-                  },
-            child: const Text('Freeze ON (02 01)'),
-          ),
-          TextButton(
-            onPressed: _busy || !_isConnected
-                ? null
-                : () async {
-                    await _writeField(() => _logCtrlWrite(Uint8List.fromList([0x02, 0x00])));
-                    if (ctx.mounted) Navigator.of(ctx).pop();
-                  },
-            child: const Text('Freeze OFF (02 00)'),
-          ),
-          TextButton(
-            onPressed: _busy || !_isConnected
-                ? null
-                : () async {
-                    await _writeField(() => _logCtrlWrite(Uint8List.fromList([0x04])));
-                    if (ctx.mounted) Navigator.of(ctx).pop();
-                  },
-            child: const Text('Cursor=0 (04)'),
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      _logsText = firstLine.trim().isEmpty ? '(brak / nie odczytano)' : firstLine;
+    });
   }
 
   @override
@@ -650,14 +699,6 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
                 OutlinedButton(
                   onPressed: _busy || !_isConnected ? null : _disconnect,
                   child: const Text('Rozłącz'),
-                ),
-                OutlinedButton(
-                  onPressed: _busy || !_isConnected
-                      ? null
-                      : () => _writeField(() async {
-                            await _ensureServicesDiscovered();
-                          }),
-                  child: const Text('Discover services'),
                 ),
               ],
             ),
@@ -991,7 +1032,7 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Uwaga: firmware wspiera “Read long / Read blob”, ale flutter_reactive_ble nie udostępnia offsetów — więc odczyt logów jest „best effort” (jedna porcja).',
+              'Pobieramy jedną porcję logów i pokazujemy tylko pierwszą linię.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
             ),
             const SizedBox(height: 12),
@@ -1000,7 +1041,7 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
                 const Expanded(child: Text('Logs (0x000B)')),
                 IconButton(
                   tooltip: 'Pobierz',
-                  onPressed: _busy || !_isConnected ? null : () => _writeField(_readLogsBestEffort),
+                  onPressed: _busy || !_isConnected ? null : () => _writeField(_readLogsFirstLine),
                   icon: const Icon(Icons.download),
                 ),
                 IconButton(
@@ -1011,27 +1052,6 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
                 IconButton(
                   tooltip: 'Descriptor',
                   onPressed: _busy || !_isConnected ? null : () => _descriptorPressed(HoplaGattUuids.logs, title: 'Logs'),
-                  icon: const Icon(Icons.info_outline),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Expanded(child: Text('Log Ctrl (0x000C)')),
-                IconButton(
-                  tooltip: 'Pobierz (niedostępne)',
-                  onPressed: null,
-                  icon: const Icon(Icons.download),
-                ),
-                IconButton(
-                  tooltip: 'Zapisz',
-                  onPressed: _busy || !_isConnected ? null : _showLogCtrlDialog,
-                  icon: const Icon(Icons.upload),
-                ),
-                IconButton(
-                  tooltip: 'Descriptor',
-                  onPressed: _busy || !_isConnected ? null : () => _descriptorPressed(HoplaGattUuids.logCtrl, title: 'Log Ctrl'),
                   icon: const Icon(Icons.info_outline),
                 ),
               ],
