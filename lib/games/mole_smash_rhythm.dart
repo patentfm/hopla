@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:sensors_plus/sensors_plus.dart';
+import 'package:sensors/sensors.dart';
 
 class MoleSmashRhythmScreen extends StatefulWidget {
   const MoleSmashRhythmScreen({super.key});
