@@ -5,6 +5,7 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:hopla/ble/hopla_adv_parser.dart';
 import 'package:hopla/ble/ble_device_screen.dart';
+import 'package:hopla/games/mole_smash_rhythm.dart';
 
 class BleScannerScreen extends StatefulWidget {
   const BleScannerScreen({super.key});
@@ -256,6 +257,18 @@ class _BleScannerScreenState extends State<BleScannerScreen> {
       appBar: AppBar(
         title: const Text('Hopla! BLE Scanner'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.videogame_asset),
+            tooltip: 'Mole Smash Rhythm',
+            onPressed: () {
+              _stopScan();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MoleSmashRhythmScreen(),
+                ),
+              );
+            },
+          ),
           if (_isScanning)
             IconButton(
               icon: const Icon(Icons.stop),
